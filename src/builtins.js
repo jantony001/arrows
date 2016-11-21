@@ -246,6 +246,63 @@ class DBArrow extends SimpleConfigBasedAsyncArrow {
     }
 }
 
+class ChartArrow extends SimpleConfigBasedAsyncArrow {
+
+    constructor(f) {
+        super(f, 'QueryError');
+    }
+
+	transformData(data, type) {
+		return data;
+	}
+    call(x) {
+        if (x && x.constructor === Array && this.c.length > 1) {
+            var conf = this.c.apply(null, x);
+        } else {
+            var conf = this.c(x);
+        }
+
+		google.charts.load('current', {'packages' : ['corechart']});
+		google.charts.setOnLoadCallback(function() {
+			var elem = document.getElementById(conf.elem); 
+			var chart;
+			
+			function countSummarization(rows, x) {
+				var dataArr = [[x, 'count']],
+				dataMap = {};
+				rows.forEach(function (data) {
+					var prop = dataMap[data[x]];
+					if (!prop) {
+						prop = 0;
+					}
+					dataMap[data[x]] = ++prop;
+				});
+				Object.keys(dataMap).forEach(function (key) {
+					dataArr.push([key, dataMap[key]]);
+				});
+				return dataArr;
+			}
+			var data = google.visualization.arrayToDataTable(countSummarization(conf.data, conf.x));
+
+			switch(conf.type) {
+				case 'pie':
+					chart = new google.visualization.PieChart(elem);
+					break;
+				case 'bar':
+					chart = new google.visualization.BarChart(elem);
+					break;
+				default:
+					throw new ComposeError(`Unsupported chart type`);
+			}
+			chart.draw(data, conf.options);
+		});
+
+    }
+
+    equals(that) {
+        return that instanceof DBArrow && this.config === that.config;
+    }
+}
 class EventArrow extends SimpleAsyncArrow {
     constructor(name) {
         // Elem ~> Event
