@@ -2,6 +2,8 @@ var annotationCache = {};
 
 // Convenience
 Arrow.db = (f, db) => new DBArrow(f, db);
+Arrow.PiChart = (conf, fn, elem) => new ChartArrow(conf, fn, new PieChart(elem));
+Arrow.BarChart = (conf, fn, elem) => new ChartArrow(conf, fn, new BarChart(elem));
 
 class LiftedArrow extends Arrow {
     constructor(f) {
@@ -246,55 +248,48 @@ class DBArrow extends SimpleConfigBasedAsyncArrow {
     }
 }
 
+class Chart {
+	constructor (elem) {
+		this.elem = elem;
+	}
+	chart(){}
+}
+
+class PieChart extends Chart {
+	chart() {
+		return new google.visualization.PieChart(document.getElementById(this.elem));
+	}
+}
+
+class BarChart extends Chart {
+	chart() {
+		return new google.visualization.BarChart(document.getElementById(this.elem));
+	}
+}
+
 class ChartArrow extends SimpleConfigBasedAsyncArrow {
 
-    constructor(f) {
+    constructor(f, fn, chart) {
         super(f, 'QueryError');
+		this.fn = fn;
+		this.chart = chart;
     }
 
-	transformData(data, type) {
-		return data;
-	}
     call(x) {
         if (x && x.constructor === Array && this.c.length > 1) {
             var conf = this.c.apply(null, x);
         } else {
             var conf = this.c(x);
         }
+		var transformerFn = this.fn;
+		var chart = this.chart;
 
 		google.charts.load('current', {'packages' : ['corechart']});
 		google.charts.setOnLoadCallback(function() {
-			var elem = document.getElementById(conf.elem); 
-			var chart;
-			
-			function countSummarization(rows, x) {
-				var dataArr = [[x, 'count']],
-				dataMap = {};
-				rows.forEach(function (data) {
-					var prop = dataMap[data[x]];
-					if (!prop) {
-						prop = 0;
-					}
-					dataMap[data[x]] = ++prop;
-				});
-				Object.keys(dataMap).forEach(function (key) {
-					dataArr.push([key, dataMap[key]]);
-				});
-				return dataArr;
-			}
-			var data = google.visualization.arrayToDataTable(countSummarization(conf.data, conf.x));
+			var elem = document.getElementById(conf.elem);
+			var data = google.visualization.arrayToDataTable(transformerFn.call(this, conf.data, conf.x));
 
-			switch(conf.type) {
-				case 'pie':
-					chart = new google.visualization.PieChart(elem);
-					break;
-				case 'bar':
-					chart = new google.visualization.BarChart(elem);
-					break;
-				default:
-					throw new ComposeError(`Unsupported chart type`);
-			}
-			chart.draw(data, conf.options);
+			chart.chart().draw(data, conf.chart_options);
 		});
 
     }
