@@ -13,6 +13,7 @@ cat src/combinators.js >> dist/arrows.js
 cat src/types.js >> dist/arrows.js
 cat src/typechecker.js >> dist/arrows.js
 cat src/util.js >> dist/arrows.js
+cat src/charts.js >> dist/arrows.js
 
 # Build legacy version
 babel dist/parser.js > dist/parser-legacy.js
